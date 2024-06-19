@@ -1,5 +1,5 @@
 // L3-eval.ts
-import { map } from "ramda";
+import { apply, map } from "ramda";
 import { isCExp, isLetExp } from "./L3-ast";
 import { BoolExp, CExp, Exp, IfExp, LitExp, NumExp,
          PrimOp, ProcExp, Program, StrExp, VarDecl, ClassExp } from "./L3-ast";
@@ -8,7 +8,7 @@ import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLitExp, isNumExp,
 import { makeBoolExp, makeLitExp, makeNumExp, makeProcExp, makeStrExp } from "./L3-ast";
 import { parseL3Exp } from "./L3-ast";
 import { applyEnv, makeEmptyEnv, makeEnv, Env } from "./L3-env-sub";
-import { isClosure, makeClosure, Closure, Value, makeClass, ClassVal, isClass, ObjectVal, isObject, makeObject } from "./L3-value";
+import { isClosure, makeClosure, Closure, Value, makeClassVal, ClassVal, isClassVal, ObjectVal, isObjectVal, makeObjectVal, isSymbolSExp } from "./L3-value";
 import { first, rest, isEmpty, List, isNonEmptyList } from '../shared/list';
 import { isBoolean, isNumber, isString } from "../shared/type-predicates";
 import { Result, makeOk, makeFailure, bind, mapResult, mapv } from "../shared/result";
@@ -44,9 +44,7 @@ export const isTrueValue = (x: Value): boolean =>
     ! (x === false);
 
 export const evalClass = (exp: ClassExp, env: Env): Result<Value> =>
-    makeOk(makeClass(exp.fields, exp.methods));
-
-// export const evalObject = (exp: Object) 
+    makeOk(makeClassVal(exp.fields, exp.methods));
 
 const evalIf = (exp: IfExp, env: Env): Result<Value> =>
     bind(L3applicativeEval(exp.test, env), (test: Value) => 
@@ -59,7 +57,8 @@ const evalProc = (exp: ProcExp, env: Env): Result<Closure> =>
 const L3applyProcedure = (proc: Value, args: Value[], env: Env): Result<Value> =>
     isPrimOp(proc) ? applyPrimitive(proc, args) :
     isClosure(proc) ? applyClosure(proc, args, env) :
-    isClass(proc) ? makeOk(makeObject(proc, args)) : 
+    isClassVal(proc) ? makeOk(makeObjectVal(proc, args)) : 
+    isObjectVal(proc) ? applyMethod(proc, args, env) :
     makeFailure(`Bad procedure ${format(proc)}`);
 
 // Applications are computed by substituting computed
@@ -73,6 +72,44 @@ export const valueToLitExp = (v: Value): NumExp | BoolExp | StrExp | LitExp | Pr
     isPrimOp(v) ? v :
     isClosure(v) ? makeProcExp(v.params, v.body) :
     makeLitExp(v);
+
+export const applyMethod = (proc: ObjectVal, args: Value[], env: Env): Result<Value> => {
+    // check that argument is of type string
+    const methodName = isSymbolSExp(args[0]) ? args[0].val : args[0];
+    if(!isString(methodName)) {
+        return makeFailure("method is not of type string.");
+    }
+    // search for method name in object's methods
+    const method = proc.classVal.methods.filter(method => method.var.var === args[0]);
+    if (method.length == 1) { // if found, apply relvant method 
+        const vars = map((v: VarDecl) => v.var, proc.classVal.fields);
+        const body = renameExps(evalProc(method[0].val, env).body);
+        const litArgs : CExp[] = map(valueToLitExp, proc.values);
+        return evalSequence(substitute(body, vars, litArgs), env);;
+    } else {
+        makeFailure
+    }
+}
+
+// export const applyObject = (proc: Object, vals: Value[], env: Env): Result<Value> => {
+//     const methodName = isSymbolSExp(vals[0]) ? vals[0].val : vals[0];
+//     if(!isString(methodName)) {
+//         return makeFailure("not valid.");
+//     }
+//     const method = proc.classVal.methods.find(b => b.var.var === methodName);
+//     if(!method) {
+//         return makeFailure(`Unrecognized method: ${methodName}`);
+//     }
+//     if(!isBinding(method)) {
+//         return makeFailure("not valid.");
+//     }
+//     const methodProc = method.val;
+//     if(!isProcExp(methodProc)) {
+//         return makeFailure("not valid.");
+//     }
+//     return applyClosure(makeClosure(methodProc.args, methodProc.body), vals.slice(1),
+//     proc.classVal.fields.reduce((accEnv, field, index) => makeEnv(field.var, proc.values[index], accEnv) ,env))
+// }
 
 const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
     const vars = map((v: VarDecl) => v.var, proc.params);

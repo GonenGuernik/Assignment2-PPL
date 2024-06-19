@@ -1,12 +1,11 @@
 // ========================================================
 // Value type definition for L4
 
-import { isPrimOp, CExp, PrimOp, VarDecl, Binding } from './L3-ast';
+import { isPrimOp, CExp, PrimOp, VarDecl, Binding, makeBinding } from './L3-ast';
 import { Env, makeEmptyEnv } from './L3-env-env';
-import { append } from 'ramda';
+import { append, map, zipWith} from 'ramda';
 import { isArray, isNumber, isString } from '../shared/type-predicates';
 import { valueToLitExp } from './L3-eval-sub';
-import { map } from "ramda";
 
 
 export type Value = SExpValue;
@@ -34,40 +33,38 @@ export type ClassVal = {
 export type ObjectVal = {
     tag: "ObjectVal";
     classVal: ClassVal;
-    // fields: VarDecl[];
     values: Value[];
-    bindings: Binding[];
-    // methods: Binding[];
     env: Env;
 }
 
-export const makeClass = (fields: VarDecl[], methods: Binding[]): ClassVal =>
+export const makeClassVal = (fields: VarDecl[], methods: Binding[]): ClassVal =>
     ({tag: "ClassVal", fields: fields, methods: methods, env : makeEmptyEnv()});
 export const makeClassEnv = (fields: VarDecl[], methods: Binding[], env: Env): ClassVal =>
     ({tag: "ClassVal", fields: fields, methods: methods, env: env});
-export const isClass = (x: any): x is ClassVal => x.tag === "ClassVal";
+export const isClassVal = (x: any): x is ClassVal => x.tag === "ClassVal";
 
-export const makeObject = (classVal: ClassVal, values: Value[]): ObjectVal => 
-    ({tag: "ObjectVal", classVal: classVal, values: values, env : makeEmptyEnv()});
-    const vars = map((v: VarDecl) => v.var, classVal.fields);
-    const litVals = map(valueToLitExp, values); 
-    bindings = map((val: CExp[]) => zipWith(makeBinding, vars, val), values);
+export const makeObjectVal = (classVal: ClassVal, values: Value[]): ObjectVal => {
+    return ({tag: "ObjectVal", classVal: classVal, values: values, env : makeEmptyEnv()});
+    // const vars = map((v: VarDecl) => v.var, classVal.fields);
+    // const litVals = map(valueToLitExp, values); 
+    // bindings = map((val: CExp[]) => zipWith(makeBinding, vars, val), litVals);
+    // litVal is not cexp.. 
+}
+
+    // const vars = map(b => b[0], bindings);
+    // const valsResult = mapResult(parseL3CExp, map(second, bindings));
+    // const bindingsResult = mapv(valsResult, (vals: CExp[]) => zipWith(makeBinding, vars, vals));
 
 
-    const vars = map(b => b[0], bindings);
-    const valsResult = mapResult(parseL3CExp, map(second, bindings));
-    const bindingsResult = mapv(valsResult, (vals: CExp[]) => zipWith(makeBinding, vars, vals));
-
-
-const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
-    const vars = map((v: VarDecl) => v.var, proc.params);
-    const body = renameExps(proc.body);
-    const litArgs : CExp[] = map(valueToLitExp, args);
-    return evalSequence(substitute(body, vars, litArgs), env);
+// const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
+//     const vars = map((v: VarDecl) => v.var, proc.params);
+//     const body = renameExps(proc.body);
+//     const litArgs : CExp[] = map(valueToLitExp, args);
+//     return evalSequence(substitute(body, vars, litArgs), env);
 
 export const makeObjectEnv = (classVal: ClassVal, values: Value[], env: Env): ObjectVal =>
     ({tag: "ObjectVal", classVal: classVal, values: values, env: env});
-export const isObject = (x: any): x is Object => x.tag === "ObjectVal";
+export const isObjectVal = (x: any): x is Object => x.tag === "ObjectVal";
 
 export const makeClosure = (params: VarDecl[], body: CExp[]): Closure =>
     ({tag: "Closure", params: params, body: body, env : makeEmptyEnv()});
@@ -136,6 +133,6 @@ export const valueToString = (val: Value): string =>
     isSymbolSExp(val) ? val.val :
     isEmptySExp(val) ? "'()" :
     isCompoundSExp(val) ? compoundSExpToString(val) :
-    isClass(val) ? classToString(val) :
-    isObject(val) ? objectToString(val) :
+    isClassVal(val) ? classToString(val) :
+    isObjectVal(val) ? objectToString(val) :
     val;
