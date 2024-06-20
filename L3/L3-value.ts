@@ -45,26 +45,11 @@ export const isClassVal = (x: any): x is ClassVal => x.tag === "ClassVal";
 
 export const makeObjectVal = (classVal: ClassVal, values: Value[]): ObjectVal => {
     return ({tag: "ObjectVal", classVal: classVal, values: values, env : makeEmptyEnv()});
-    // const vars = map((v: VarDecl) => v.var, classVal.fields);
-    // const litVals = map(valueToLitExp, values); 
-    // bindings = map((val: CExp[]) => zipWith(makeBinding, vars, val), litVals);
-    // litVal is not cexp.. 
 }
-
-    // const vars = map(b => b[0], bindings);
-    // const valsResult = mapResult(parseL3CExp, map(second, bindings));
-    // const bindingsResult = mapv(valsResult, (vals: CExp[]) => zipWith(makeBinding, vars, vals));
-
-
-// const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
-//     const vars = map((v: VarDecl) => v.var, proc.params);
-//     const body = renameExps(proc.body);
-//     const litArgs : CExp[] = map(valueToLitExp, args);
-//     return evalSequence(substitute(body, vars, litArgs), env);
 
 export const makeObjectEnv = (classVal: ClassVal, values: Value[], env: Env): ObjectVal =>
     ({tag: "ObjectVal", classVal: classVal, values: values, env: env});
-export const isObjectVal = (x: any): x is Object => x.tag === "ObjectVal";
+export const isObjectVal = (x: any): x is ObjectVal => x.tag === "ObjectVal";
 
 export const makeClosure = (params: VarDecl[], body: CExp[]): Closure =>
     ({tag: "Closure", params: params, body: body, env : makeEmptyEnv()});
@@ -92,7 +77,7 @@ export type SymbolSExp = {
 export type SExpValue = number | boolean | string | PrimOp | Closure | SymbolSExp | EmptySExp | CompoundSExp | ClassVal | ObjectVal;
 export const isSExp = (x: any): x is SExpValue =>
     typeof(x) === 'string' || typeof(x) === 'boolean' || typeof(x) === 'number' ||
-    isSymbolSExp(x) || isCompoundSExp(x) || isEmptySExp(x) || isPrimOp(x) || isClosure(x);
+    isSymbolSExp(x) || isCompoundSExp(x) || isEmptySExp(x) || isPrimOp(x) || isClosure(x) || isClassVal(x) || isObjectVal(x);
 
 export const makeCompoundSExp = (val1: SExpValue, val2: SExpValue): CompoundSExp =>
     ({tag: "CompoundSexp", val1: val1, val2 : val2});
@@ -123,7 +108,13 @@ export const compoundSExpToString = (cs: CompoundSExp, css = compoundSExpToArray
     isArray(css) ? `(${css.join(' ')})` :
     `(${css.s1.join(' ')} . ${css.s2})`
 
-export const valueToString = (val: Value): string =>
+export const classToString = (c: ClassVal): string =>
+    `Class`
+
+export const objectToString = (c: Object): string =>
+        `Object`
+
+    export const valueToString = (val: Value): string =>
     isNumber(val) ?  val.toString() :
     val === true ? '#t' :
     val === false ? '#f' :
