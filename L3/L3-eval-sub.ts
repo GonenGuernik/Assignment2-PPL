@@ -79,6 +79,7 @@ export const applyMethod = (proc: ObjectVal, args: Value[], env: Env): Result<Va
     if(!isString(methodName)) {
         return makeFailure("method is not of type string.");
     }
+    
     // search for method name in object's methods
     const method = proc.classVal.methods.filter(method => method.var.var === args[0]);
     if (method.length == 1) { // if found, apply relvant method 
@@ -87,7 +88,7 @@ export const applyMethod = (proc: ObjectVal, args: Value[], env: Env): Result<Va
         const litArgs : CExp[] = map(valueToLitExp, proc.values);
         return evalSequence(substitute(body, vars, litArgs), env);;
     } else {
-        makeFailure
+        return makeFailure(`Unrecognized method: ${methodName}`);
     }
 }
 
