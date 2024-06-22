@@ -1,6 +1,6 @@
 // L3-eval.ts
 import { apply, map } from "ramda";
-import { isCExp, isLetExp } from "./L3-ast";
+import { isCExp, isGoodBindings, isLetExp } from "./L3-ast";
 import { BoolExp, CExp, Exp, IfExp, LitExp, NumExp,
          PrimOp, ProcExp, Program, StrExp, VarDecl, ClassExp } from "./L3-ast";
 import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLitExp, isNumExp,
@@ -74,43 +74,18 @@ export const valueToLitExp = (v: Value): NumExp | BoolExp | StrExp | LitExp | Pr
     makeLitExp(v);
 
 export const applyMethod = (proc: ObjectVal, args: Value[], env: Env): Result<Value> => {
-    // check that argument is of type string
     const methodName = isSymbolSExp(args[0]) ? args[0].val : args[0];
     if(!isString(methodName)) {
         return makeFailure("method is not of type string.");
     }
-    
-    // search for method name in object's methods
-    const method = proc.classVal.methods.filter(method => method.var.var === args[0]);
-    if (method.length == 1) { // if found, apply relvant method 
-        const vars = map((v: VarDecl) => v.var, proc.classVal.fields);
-        const body = renameExps(evalProc(method[0].val, env).body);
-        const litArgs : CExp[] = map(valueToLitExp, proc.values);
-        return evalSequence(substitute(body, vars, litArgs), env);;
+    const method = proc.classVal.methods.filter(method => method.var.var === methodName);
+    if (method.length == 1 && isProcExp(method[0].val)) { // if found, apply relvant method 
+        return applyClosure(makeClosure(method[0].val.args, method[0].val.body), args.slice(1), 
+        proc.classVal.fields.reduce((accEnv, field, index) => makeEnv(field.var, proc.values[index], accEnv) ,env))
     } else {
         return makeFailure(`Unrecognized method: ${methodName}`);
     }
 }
-
-// export const applyObject = (proc: Object, vals: Value[], env: Env): Result<Value> => {
-//     const methodName = isSymbolSExp(vals[0]) ? vals[0].val : vals[0];
-//     if(!isString(methodName)) {
-//         return makeFailure("not valid.");
-//     }
-//     const method = proc.classVal.methods.find(b => b.var.var === methodName);
-//     if(!method) {
-//         return makeFailure(`Unrecognized method: ${methodName}`);
-//     }
-//     if(!isBinding(method)) {
-//         return makeFailure("not valid.");
-//     }
-//     const methodProc = method.val;
-//     if(!isProcExp(methodProc)) {
-//         return makeFailure("not valid.");
-//     }
-//     return applyClosure(makeClosure(methodProc.args, methodProc.body), vals.slice(1),
-//     proc.classVal.fields.reduce((accEnv, field, index) => makeEnv(field.var, proc.values[index], accEnv) ,env))
-// }
 
 const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
     const vars = map((v: VarDecl) => v.var, proc.params);
